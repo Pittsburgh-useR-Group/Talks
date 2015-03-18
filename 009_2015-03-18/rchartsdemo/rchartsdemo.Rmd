@@ -1,0 +1,142 @@
+---
+title: "rCharts Demo"
+author: "Bronwyn Woods"
+date: "March 16, 2015"
+output: html_document
+---
+
+rCharts is available through github, but not CRAN. Instructions for installation are on the website rcharts.io.
+
+```{r}
+#require(devtools)
+#install_github('rCharts', 'ramnathv')
+
+library(rCharts)
+```
+
+
+```{r}
+# Read in weather CSVs from weather underground
+files = c("march14.csv", "april14.csv", "may14.csv", "june14.csv", "july14.csv", "august14.csv", "sept14.csv", "oct14.csv", "nov14.csv", "dec14.csv", "jan15.csv", "feb15.csv", "march15.csv")
+data = lapply(files, read.csv, stringsAsFactors=F)
+for(i in 1:length(data)){names(data[[i]]) = names(data[[1]])}
+data = do.call("rbind", data)
+data$EDT = as.POSIXct(data$EDT)
+```
+
+
+Standard R plot of min and max temperatures.
+```{r}
+plot(data$EDT, data$Max.TemperatureF, type="l", col="red")
+points(data$EDT, data$Min.TemperatureF, type="l", col="blue")
+```
+
+The rCharts package has a number of shorthand plotting functions that are supposed to give easy access to the various javascript plotting libraries. This includes 
+
+* Highcharts
+* Morris
+* NVD3
+* Polychart
+* Rickshaw
+* xCharts
+
+In practice, the plotting functions are essentially not documented. There are a lot of examples, but I've found it easiest to choose one library and learn the various options since you can manipulate these fairly directly through rCharts.
+
+I have mostly used Highcharts, and a little bit of NVD3.
+
+# Using a simple plotting function from rCharts
+
+As an example of using the simple plotting functions from rCharts, here's a barchart from NVD3. This shows a bar chart of the percentage of days in each month with each level of CloudCover (0-8). I'm assuming bigger numbers mean more clouds, but I don't actually know for sure.
+
+
+```{r, results='asis'}
+########## Data manipulation ###########
+# Make month-min-max data.frame from the original data
+library(data.table)
+data = data.table(data)
+# create month column
+clouddata = data[,months:=months(EDT)]
+# make months a factor so that it's ordered correctly
+clouddata$months = factor(clouddata$months, levels=c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
+
+# data.table nonsense to get summary counts per month and CloudCover number 
+clouddata = setkey(clouddata, months, CloudCover)[CJ(unique(months), unique(CloudCover)),.N]
+# make the counts a percentage of days instead of an absolute count (because dataset has more March days)
+clouddata = clouddata[,monthcount:=sum(N), by=months]
+clouddata = clouddata[,monthperc:=N/monthcount]
+
+############ The actual plotting ##########
+n1 = nPlot(monthperc ~ months, group = "CloudCover", data=clouddata, type="multiBarChart")
+n1$show('inline',  include_assets=TRUE)
+```
+
+
+Another example, this time plotting the temperature as a line plot.
+
+```{r, results='asis'}
+n2 = nPlot(Max.TemperatureF~ EDT, data=data, type="lineChart")
+n2$show('inline', include_assets=TRUE)
+```
+
+# Digging into the details
+
+For anything beyond the simplest plots, I have found it easier to read the javascript documentation and set the plot characteristics directly instead of through the rCharts convenience functions. I've done this mostly with Highcharts (which had some zooming feature I specifically needed at one point).
+
+http://api.highcharts.com/ has the API for each characteristic of Highcharts plots.
+http://www.highcharts.com/docs/chart-and-series-types/chart-types has more user-friendly documentation of chart types.
+
+```{r, results='asis'}
+# Create an empty plot
+p1 = rCharts:::Highcharts$new()
+
+# The top-level config options in the highcharts API can be referenced through $, the lower level options are specified through named arguments
+p1$title(text="Max and min temperatures in Pittsburgh")
+
+# Allow zoom in the x dimension
+p1$chart(zoomType="x")
+
+# Characteristics of the axes
+p1$yAxis(min=min(data$Min.TemperatureF), max=max(data$Max.TemperatureF))
+
+# Note that highcharts expects times as milliseconds after 1970 (POSIXct in R is seconds) 
+p1$xAxis(type="datetime")
+
+data$desc = paste0(data$EDT, "<br> Temp range: ",data$Min.TemperatureF, "-", data$Max.TemperatureF)
+
+# Add a 'series' (think points() in R base plotting). Data is expected as JSON. 
+p1$series(data = toJSONArray(data[,list(x=as.numeric(EDT)*1000, y=Min.TemperatureF, desc)], json=F), type="line", name="Minimum (F)", color="blue")
+p1$series(data = toJSONArray(data[,list(x=as.numeric(EDT)*1000, y=Max.TemperatureF, desc)], json=F), type="line", name="Maximum (F)", color="red")
+
+# Add a custom tooltip, in this case just returning the value computed in 'desc' above
+p1$tooltip( formatter = 
+                "#! function() { 
+             return this.point.desc;
+          }
+          !#")
+
+p1$show('inline', include_assets=TRUE)
+```
+
+It turns out that for this particular example, there is a Highcharts plot type specifically designed for ranges
+```{r, results='asis'}
+# Create an empty plot
+p1 = rCharts:::Highcharts$new()
+
+# The top-level config options in the highcharts API can be referenced through $, the lower level options are specified through named arguments
+p1$title(text="Max and min temperatures in Pittsburgh")
+
+# Allow zoom in the x dimension
+p1$chart(zoomType="x")
+
+# Characteristics of the axes
+p1$yAxis(min=min(data$Min.TemperatureF), max=max(data$Max.TemperatureF))
+
+# Note that highcharts expects times as milliseconds after 1970 (POSIXct in R is seconds) 
+p1$xAxis(type="datetime")
+
+p1$series(data = toJSONArray(data[,list(x=as.numeric(EDT)*1000, low=Min.TemperatureF, high=Max.TemperatureF)], json=F), type="arearange", name="Temperature Range")
+
+p1$show('inline', include_assets=TRUE)
+```
+
+
