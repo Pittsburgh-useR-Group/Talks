@@ -1,6 +1,11 @@
 # Talks
 Code and slides from speakers.
 
-* 9th Meetup (March 18th, 2015)
+* [3rd Meetup](http://www.meetup.com/Pittsburgh-useR-Group/events/127307902/) (August 1st, 2013)
+	* Mikhail Popov: [Making Your Toolbox Shine with Shiny](https://github.com/Pittsburgh-useR-Group/Talks/tree/master/003_2013-08-01/shiny)
+* [8th Meetup](http://www.meetup.com/Pittsburgh-useR-Group/events/205361302/) (October 15th, 2014)
+	* Mark Patterson: *Fun with R on the web: playing 2048 and twitter pointillism*
+	* Mikhail Popov: [A Short Tutorial on Some Neat Stuff](https://github.com/Pittsburgh-useR-Group/Talks/tree/master/008_2014-10-15/advanced_r)
+* [9th Meetup](http://www.meetup.com/Pittsburgh-useR-Group/events/219230698/) (March 18th, 2015)
 	* Sam Ventura
 	* Bronwyn Woods: [rCharts Demo](https://github.com/Pittsburgh-useR-Group/Talks/tree/master/009_2015-03-18/rchartsdemo)

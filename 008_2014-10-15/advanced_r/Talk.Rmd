@@ -1,0 +1,243 @@
+---
+title: "A Short Tutorial on Some Neat Stuff"
+author: "Mikhail Popov (@bearloga)"
+date: "October 15, 2014"
+output:
+ ioslides_presentation:
+  widescreen: true
+  incremental: yes
+---
+
+## Overview
+
+- forward-pipe operator `%>%` aka "then-do"
+- underused `%in%` operator
+- `Reduce` function
+- `...` argument for functions
+- `<<-` operator and scope
+- writing custom binary operators
+
+## Forward-pipe operator *%>%* aka "then-do"
+
+The `magrittr` package adds a new operator to the R language and enables you to write cleaner code.
+
+Traditionally, you write code inside-to-outside:
+
+```{r,eval=FALSE}
+h(f(x),y)
+```
+
+`%>%` lets you write a left-to-right pipeline:
+
+```{r,eval=FALSE}
+x %>% f %>% h(y) # Implict: h(<input>,y)
+```
+
+You can also specify the position of the input with `.`
+
+```{r,eval=FALSE}
+x %>% f %>% h(y,.)
+```
+
+## *%>%* Example
+
+Nested functions:
+
+```{r,eval=FALSE}
+library(xtable) # Export tables to LaTeX or HTML
+xtable(
+	coef(
+		summary(
+			lm(sqrt(dist)~speed,cars)
+		)
+	)
+)
+```
+
+"then-do" approach
+
+```{r,eval=FALSE}
+library(magrittr) # Provides pipe-forwarding mechanisms
+cars %>% lm(sqrt(dist)~speed,.) %>% summary %>% coef %>% xtable
+```
+
+## *%>%* Example Continued
+
+```{r,echo=FALSE}
+library(magrittr)
+```
+
+```{r,results='asis'}
+library(knitr) # for kable() which renders tables to markdown
+cars %>% lm(sqrt(dist)~.,.) %>% summary %>% coef %>% round(3) %>% kable
+```
+
+---
+
+```{r,fig.height=4,fig.align='center'}
+cars %>%
+	transform(dist=sqrt(dist)) %>%
+		function(x) {
+			x %>% plot(ylab=expression(sqrt(dist)))
+			x %>% lm(dist~speed,.) %>% abline
+		}
+```
+
+---
+
+`match` returns a vector of the positions of (first) matches of its first argument in its second:
+
+```{r}
+match(c("Shocktober","october","Rocktober","October","Inktober"),month.name)
+```
+
+The binary operator `%in%` is a more intuitive interface to `match`:
+
+```{r}
+c("Shocktober","october","Rocktober","October","Inktober") %in% month.name
+```
+
+```{r}
+c("Shocktober","october","Rocktober","October","Inktober") %in% month.name %>% which
+```
+
+---
+
+```{r}
+A <- month.name[2:6] # February, March, April, May, June
+B <- month.name[4:10] # April, May, June, July, August, September, October
+C <- month.name[3*(1:4)] # March, June, September, December
+D <- month.name[2*(1:6)] # February, April, June, August, October, December
+```
+```{r}
+intersect(intersect(intersect(A,B),C),D)
+# alt: intersect(A,B) %>% intersect(C) %>% intersect(D)
+```
+`Reduce` uses a binary function to successively combine the elements of a given vector and a possibly given initial value.
+```{r}
+Reduce(intersect,list(A,B,C,D))
+```
+
+## Silly Application
+
+*Royal Rumble* is a battle royal that begins with two participants in the ring, with the remaining participants introduced one by one (at a set time period). The winner is the last participant standing.
+```{r,eval=FALSE}
+library(babynames) # devtools::install_github("hadley/babynames")
+library(dplyr) # A fast, consistent tool for working with data frame like objects.
+top10 <- babynames %>% filter(year==1990) %>% top_n(10,n) %>% select(name) %>% sample
+```
+```{r,message=FALSE,warning=FALSE,echo=FALSE}
+library(babynames)
+library(dplyr)
+set.seed(0)
+top10 <- babynames %>% filter(year==1990) %>% top_n(10,n) %>% select(name) %>% c %>% unlist %>% sample
+names(top10) <- paste("Contestant",1:10)
+print(top10)
+```
+```{r,eval=FALSE}
+fight <- function(x,y) sample(c(x,y),1,prob=c(2,1)/3)
+Reduce(fight,top10)
+```
+```{r,echo=FALSE}
+fight <- function(x,y) sample(c(x,y),1,prob=c(2,1)/3)
+set.seed(78); top10 %>% Reduce(fight,.)
+```
+
+## Application of %in% and *Reduce* (Background)
+
+Patients' visits to a clinic, with up to 5 diagnoses established per visit. Suppose a diagnosis is coded 001--100. (Although in reality they would be ICD-9 codes.)
+
+```{r,echo=FALSE,results='asis'}
+n <- 1e3
+p <- 5
+visits <- matrix(sample(sprintf("%03i",1:100),n*p,repl=T),nrow=n,ncol=p,byrow=T)
+nais <- sample(2:5,n,repl=T,prob=(2:p)/sum(2:p))
+for ( i in 1:n ) visits[i,nais[i]:p] <- NA
+visits <- as.data.frame(visits); names(visits) <- paste("dx",1:p,sep="")
+visits$age <- floor(rnorm(n,55,5))
+visits %>% tail %>% kable
+```
+
+## Application of %in% and *Reduce*
+
+### Objective
+
+We are interested in patients whose "primary" (first three) diagnoses are kidney-related (049--060).
+
+### Solution
+
+```{r}
+dx.kidney <- sprintf("%03i",49:60) # "049" "050" ... "059" "060"
+index <- Reduce("|", # 'or'
+				list(visits$dx1 %in% dx.kidney,
+					 visits$dx2 %in% dx.kidney,
+				   	 visits$dx3 %in% dx.kidney)) %>% which
+# visits$age[index] : age of patients with kidney-related primary dx
+```
+
+## Optional arguments using '...'
+
+**Example**: `apply(X, MARGIN, FUN, ...)` where `...` are arguments that are passed on to the function `FUN`
+
+```{r}
+inventory <- function(ArkID,...) {
+	args <- list(...) # required
+	args %>% unlist %>% as.table %>% addmargins
+}
+inventory(1,Noah=1,Cats=2,Dogs=2,Penguins=2,Dinosaurs=0)
+```
+
+---
+
+A variable can be defined in global or local scope. Variables created inside of a function are local to it and die when the function is done. The operators `<<-` and `->>` cause a search to made through parent environments for an existing definition of the variable being assigned, subverting scope.
+
+```{r}
+save.creatures <- function(...) {
+	args <- list(...) # required
+	# some code that actually saves the creatures
+	creatures.saved.local <- args %>% unlist %>% as.table %>% sum 
+	creatures.saved.global <<- args %>% unlist %>% as.table %>% sum
+}
+creatures.saved.local <- 0; creatures.saved.global <- 0
+save.creatures(Cats=2,Dogs=2,Penguins=2,Dinosaurs=0,Snuggleupagus=1)
+c(Local=creatures.saved.local,Global=creatures.saved.global)
+```
+
+## Binary Operators (built-in and in magrittr)
+
+| Operator                            | Description            |
+| ----------------------------------- | ---------------------- |
+| \+\, \-\, \*\, \/\, \^              | basic arithmetic       |
+| x \%\% y                            | modulus (x mod y)      |
+| X \%\*\% Y                          | matrix multiplication  |
+| \<\, \<\=\, \>\, \>\=\, \=\=\, \!\= | basic logical          |
+| \!x\, x \| y\, x \& y               | NOT x, x OR y, x AND y |
+| x \%in\% y                          | elements of x in y     |
+| x \%>\% f                           | apply function f to x  |
+
+## Writing Custom Binary Operator
+
+```{r}
+"%rowInMat%" <- function(x,y) {
+	result <- logical(nrow(y))
+	for ( i in 1:nrow(y) ) result[i] <- all(x == y[i,]); return(result)
+}
+```
+
+```{r,echo=FALSE}
+set.seed(0); x <- matrix(sample(0:1,30,repl=T),ncol=5)
+```
+
+```
+     [,1] [,2] [,3] [,4] [,5]
+[1,]    1    1    0    1    0
+[2,]    0    1    1    0    0
+[3,]    0    1    0    1    0
+[4,]    1    1    1    1    0
+[5,]    1    0    0    0    0
+[6,]    0    0    1    1    1
+```
+
+```{r}
+c(0,1,0,1,0) %rowInMat% x
+```

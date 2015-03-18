@@ -1,0 +1,216 @@
+---
+title: "Kinda, I guess, Advanced R"
+author: "Mikhail Popov (mpopov.com)"
+date: "October 15, 2014"
+output:
+ ioslides_presentation:
+  widescreen: true
+runtime: shiny
+---
+
+## Overview
+
+- forward-pipe operator `%>%` aka "then-do"
+- underused `%in%` operator
+- `Reduce` function
+- `...` argument for functions
+- `<<-` operator and scope
+- writing custom binary operators
+
+## Forward-pipe operator aka "then-do"
+
+The `magrittr` package adds a new operator to the R language and enables you to write cleaner code.
+
+Traditionally, you write code inside-to-outside:
+
+```{r,eval=FALSE}
+h(f(x),y)
+```
+
+`%>%` lets you write a left-to-right pipeline:
+
+```{r,eval=FALSE}
+x %>% f %>% h(y) # Implict: h(<input>,y)
+```
+
+## *%>%* Example
+
+```{r,echo=FALSE}
+library(magrittr) # Provides pipe-forwarding mechanisms
+library(knitr)
+```
+
+Nested functions:
+
+```{r,eval=FALSE}
+coef(summary(lm(sqrt(dist)~speed,cars)))
+```
+
+"then-do" approach:
+
+```{r, echo=FALSE}
+inputPanel(
+  tags$textarea(id="ex1", rows=3, cols=40, style="width:700px;font-size:24px;", "")
+)
+renderPrint({
+  eval(parse(text=input$ex1))
+})
+```
+
+---
+
+```{r,fig.height=4,fig.align='center'}
+cars %>%
+	transform(dist=sqrt(dist)) %>%
+	function(x) { # anonymous function
+			x %>% plot(ylab=expression(sqrt(dist)))
+			x %>% lm(dist~speed,.) %>% abline
+		}
+```
+
+---
+
+`match` returns a vector of the positions of (first) matches of its first argument in its second:
+
+```{r}
+match(c("Shocktober","October","Rocktober","october"),month.name)
+```
+
+The binary operator `%in%` is a more intuitive interface to `match`:
+
+```{r, echo=FALSE}
+inputPanel(
+  tags$textarea(id="ex2", rows=3, cols=40, style="width:700px;font-size:24px;", 'c("Shocktober","October","Rocktober","october") %in% month.name')
+)
+renderPrint({
+  eval(parse(text=input$ex2))
+})
+```
+
+---
+
+`Reduce` uses a binary function to successively combine the elements of a given vector and a possibly given initial value.
+
+```{r}
+A <- month.name[2:6] # February, March, April, May, June
+B <- month.name[4:10] # April, May, June, July, August, September, October
+C <- month.name[3*(1:4)] # March, June, September, December
+D <- month.name[2*(1:6)] # February, April, June, August, October, December
+```
+
+```{r, echo=FALSE}
+inputPanel(
+  tags$textarea(id="ex3", rows=3, cols=40, style="width:700px;font-size:24px;", 'intersect(intersect(intersect(A,B),C),D)')
+)
+renderPrint({
+  eval(parse(text=input$ex3))
+})
+```
+
+## All Together Now (Background)
+
+Patients' `visits` to a clinic, with up to 5 diagnoses established per visit. Suppose a diagnosis is coded 001--100 (fake ICD-9).
+
+```{r,echo=FALSE,results='asis'}
+n <- 1e3
+p <- 5
+visits <- matrix(sample(sprintf("%03i",1:100),n*p,repl=T),nrow=n,ncol=p,byrow=T)
+nais <- sample(2:5,n,repl=T,prob=(2:p)/sum(2:p))
+for ( i in 1:n ) visits[i,nais[i]:p] <- NA
+visits <- as.data.frame(visits); names(visits) <- paste("dx",1:p,sep="")
+visits$age <- floor(rnorm(n,55,5))
+visits %>% tail %>% kable
+```
+
+## All Together Now
+
+### Objective
+
+We are interested in patients whose "primary" (first three) diagnoses are kidney-related (049--060).
+
+### Solution
+
+```{r}
+dx.kidney <- sprintf("%03i",49:60) # "049" "050" ... "059" "060"
+index <- Reduce("|", # 'or'
+				list(visits$dx1 %in% dx.kidney,
+					 visits$dx2 %in% dx.kidney,
+				   	 visits$dx3 %in% dx.kidney)) %>% which
+# visits$age[index] : age of patients with kidney-related primary dx
+```
+
+## Optional arguments using '...'
+
+**Example**: `apply(X, MARGIN, FUN, ...)` where `...` are arguments that are passed on to the function `FUN`
+
+```{r}
+inventory <- function(ArkID,...) {
+	args <- list(...) # required
+	args %>% unlist %>% as.table %>% addmargins
+}
+```
+
+```{r, echo=FALSE}
+inputPanel(
+  tags$textarea(id="ex4", rows=3, cols=40, style="width:700px;font-size:24px;", 'inventory(1)')
+)
+renderPrint({
+  eval(parse(text=input$ex4))
+})
+```
+
+## Scope and <<-
+
+A variable can be defined in global or local scope. Variables created inside of a function are local to it and die when the function is done. The operators `<<-` and `->>` cause a search to made through parent environments for an existing definition of the variable being assigned, subverting scope.
+
+
+```{r, echo=FALSE}
+inputPanel(
+	tags$textarea(id="ex5", rows=3, cols=40, style="width:700px;height:200px;font-size:18px;", "save.creatures <- function(...) {
+	args <- list(...) # required
+	# some code that actually saves the creatures
+	# creatures.saved <- args %>% unlist %>% as.table %>% sum 
+	print(sprintf('Local: %i',creatures.saved))
+}
+creatures.saved <- 0
+
+save.creatures(Cats=2,Dogs=2,Penguins=2,Dinosaurs=0,Snuggleupagus=1)
+
+print(sprintf('Global: %i',creatures.saved))")
+)
+renderPrint({
+	eval(parse(text=input$ex5))
+})
+```
+
+## Binary Operators
+
+| Operator                            | Description            |
+| ----------------------------------- | ---------------------- |
+| \+\, \-\, \*\, \/\, \^              | basic arithmetic       |
+| x \%\% y                            | modulus (x mod y)      |
+| X \%\*\% Y                          | matrix multiplication  |
+| \<\, \<\=\, \>\, \>\=\, \=\=\, \!\= | basic logical          |
+| \!x\, x \| y\, x \& y               | NOT x, x OR y, x AND y |
+| x \%in\% y                          | elements of x in y     |
+| x \%>\% f                           | apply function f to x  |
+
+## Writing Custom Binary Operator
+
+```{r}
+"%rowInMat%" <- function(x,y) {
+result <- logical(nrow(y))
+for ( i in 1:nrow(y) ) result[i] <- all(x == y[i,]); return(result)
+}
+```
+
+```{r, echo=FALSE}
+inputPanel(
+	tags$textarea(id="ex6", rows=3, cols=40, style="width:700px;font-size:24px;", 'set.seed(0); x <- matrix(sample(0:1,30,repl=T),ncol=5)
+x
+# c(1,1,1,1,1) %rowInMat% x')
+)
+renderPrint({
+	eval(parse(text=input$ex6))
+})
+```

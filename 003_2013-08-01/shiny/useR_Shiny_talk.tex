@@ -1,0 +1,121 @@
+%\documentclass[compress]{beamer}
+
+\documentclass{beamer}
+
+\usetheme{Dresden} % Beamer Theme
+\usecolortheme{default} % Beamer Color Theme
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{graphicx} % to include figures
+\usepackage{multimedia}
+% \usepackage[all]{xy}
+
+\setbeamertemplate{itemize items}[default]
+\setbeamertemplate{enumerate items}[default]
+
+\title{Making Your Toolbox Shine with Shiny}
+\author{Mikhail Popov}
+\institute[UPMC WPIC]{
+	Data Scientist\\
+	Neuropsychology Research Program\\
+	Western Psychiatric Institute of UPMC
+}
+\date{}
+
+\begin{document}
+
+	\begin{frame}[plain]
+		\titlepage
+	\end{frame}
+	
+	\section{Introduction}
+	
+	\begin{frame}{What is Shiny?}
+		Shiny is an R package developed by the RStudio team that lets you develop an interactive web application in R.
+		\vskip 3ex
+		You do this with two files:
+		\begin{itemize}
+			\item \texttt{ui.R} (where you define the user interface)			\item \texttt{server.R} (where you define the server logic)
+		\end{itemize}
+		\vskip 3ex
+		\textbf{Only need to know R.}\\
+		No need to know HTML, PHP, or Javascript/jQuery/AJAX.
+	\end{frame}
+	
+	\begin{frame}[fragile]
+	\frametitle{Empty ui.R}
+\begin{verbatim}
+library(shiny)shinyUI(pageWithSidebar(  headerPanel("Application Title"),  sidebarPanel(    # Input UI elements go here.  ),  mainPanel(    # Output UI elements go here.  )))
+\end{verbatim}
+	\end{frame}
+	
+	\begin{frame}[fragile]
+	\frametitle{Empty server.R}
+\begin{verbatim}
+library(shiny)shinyServer(function(input,output){
+  # Server logic goes here.
+
+  # You assign reactive elements to 'output' list.
+  # You use elements from the 'input' list.
+  })
+\end{verbatim}
+	\end{frame}
+
+	\begin{frame}{Getting Started}
+		\small{
+		\textbf{To install the package}\\
+		\texttt{install.packages("shiny",repos="http://cran.rstudio.com/")}\\[3ex]
+		\textbf{Extensive tutorial by RStudio}\\
+		\texttt{http://rstudio.github.io/shiny/tutorial/}\\[3ex]
+		\textbf{Built-in demos}\\
+		\texttt{shiny::runExample(example="name")}\\[1ex]
+		Valid example names are: 01\_hello, 02\_text, 03\_reactivity, 04\_mpg, 05\_sliders, 06\_tabsets, 07\_widgets, 08\_html, 09\_upload, 10\_download, 11\_timer
+		}
+	\end{frame}
+
+	\section{Examples}
+	
+	\begin{frame}{Examples}
+		Source Code: https://github.com/bearloga/useR-shiny-talk\\[3ex]
+		\textbf{Example 1: Random Walk}\\
+				Illustrates the fundamental ideas in Shiny via some basic inputs and outputs.
+				\vskip 2ex
+		\textbf{Example 2: 2D Kernel Density Estimation}\\
+				A slightly more advanced Shiny application (app).
+				\vskip 2ex
+		\textbf{Example 3: Regression (Car Speed vs Stopping Distance)}\\
+				This app introduces conditional panels and tabs to visualize curve fitting methods on [transformed] data.
+
+	\end{frame}
+	
+	\section{Conclusion}
+
+	\begin{frame}{From Here}
+		\textbf{Shiny Server} https://github.com/rstudio/shiny-server\\[1.5ex]
+		How-to Guides for Deploying on Amazon EC2:
+		\begin{itemize}
+			\item http://mpopov.com/post/40976561625/shiny-server-amazon-ec2-guide
+			\item http://www.r-bloggers.com/deploying-shiny-server-on-amazon-ec2/
+		\end{itemize}
+		\vskip 3ex
+		\textbf{Extensive tutorial by RStudio}\\
+		http://rstudio.github.io/shiny/tutorial/
+	\end{frame}
+
+	
+	\begin{frame}{Thank You}
+%		\begin{center}
+			\Large
+			Examples Source Code\\
+			https://github.com/bearloga/useR-shiny-talk\\[3ex]
+			Contact\\
+			\large
+			Email: mikhail@mpopov.com\\
+			Web: www.mpopov.com\\
+			Twitter: @bearloga
+%		\end{center}
+	\end{frame}
+	
+\end{document}
